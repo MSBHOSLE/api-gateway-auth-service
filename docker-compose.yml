@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: .
+    container_name: api_gateway_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_NAME=API Gateway & Auth Service
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@gateway_postgres:5432/gateway
+      - REDIS_URL=redis://gateway_redis:6379/0
+      - JWT_SECRET=change-this-in-production-to-a-secure-secret-key
+    depends_on:
+      gateway_postgres:
+        condition: service_healthy
+      gateway_redis:
+        condition: service_healthy
+
+  gateway_postgres:
+    image: postgres:16-alpine
+    container_name: api_gateway_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gateway
+    ports:
+      - "5433:5432"
+    volumes:
+      - gateway_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gateway"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  gateway_redis:
+    image: redis:7-alpine
+    container_name: api_gateway_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - gateway_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  gateway_pgdata:
+  gateway_redisdata:
